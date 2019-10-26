@@ -390,16 +390,28 @@ VSTOOLS.Viewer = function () {
 	// export
 
 	function exportOBJ() {
-
+		var parsed = null;
 		if ( root instanceof THREE.SkinnedMesh ) {
-
-			var snapshot = VSTOOLS.geometrySnapshot( root );
-			var exporter = new THREE.OBJExporter();
-			var mesh = new THREE.Mesh( snapshot, new THREE.MeshNormalMaterial() );
-			exportString( exporter.parse( mesh ) );
-
+			parsed = exportSingle( [ root ] );
+		}
+		else if ( ! root.geometry && root.children.length ) {
+			root.geometry = new THREE.Geometry();
+			root.children.forEach( ( childMesh ) => {
+				root.geometry.merge( childMesh.geometry, childMesh.matrix );
+			});
+			parsed = exportSingle( root );
 		}
 
+		if ( parsed ) {
+			exportString( parsed, 'export.obj' );
+		}
+	}
+
+	function exportSingle( mesh ) {
+		var exporter = new THREE.OBJExporter();
+		var mesh     = new THREE.Mesh( mesh.geometry, new THREE.MeshNormalMaterial() );
+		var parsed   = exporter.parse( mesh );
+		return parsed;
 	}
 
 	function exportJSON() {
@@ -447,7 +459,7 @@ VSTOOLS.Viewer = function () {
 
 		output = JSON.stringify( output, null, '\t' );
 		output = output.replace( /[\n\t]+([\d\.e\-\[\]]+)/g, '$1' );
-		exportString( output );
+		exportString( output, 'export.json' );
 
 		function normals() {
 
@@ -570,14 +582,18 @@ VSTOOLS.Viewer = function () {
 
 	}
 
-	function exportString( output ) {
+	function exportString( output, name ) {
 
 		var blob = new Blob( [ output ], { type: 'text/plain' } );
 		var objectURL = URL.createObjectURL( blob );
 
-		window.open( objectURL, '_blank' );
-		window.focus();
-
+		var link = document.createElement( 'a' );
+			link.download = name;
+			link.href = objectURL;
+			document.body.appendChild( link );
+			link.click();
+		document.body.removeChild( link );
+		delete link;
 	}
 
 };
